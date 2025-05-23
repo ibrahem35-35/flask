@@ -1,49 +1,66 @@
-from flask import Flask, jsonify, request, render_template_string
+from flask import Flask, jsonify, request
+from yt_dlp import YoutubeDL
 
 app = Flask(__name__)
 
-# A simple in-memory structure to store tasks
-tasks = []
+def get_direct_url(video_url):
+    ydl_opts = {
+        'quiet': True,
+        'skip_download': True,
+        'forceurl': True,
+        'forcejson': True,
+    }
 
-@app.route('/', methods=['GET'])
-def home():
-    # Display existing tasks and a form to add a new task
-    html = '''
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Todo List</title>
-</head>
-<body>
-    <h1>Todo List</h1>
-    <form action="/add" method="POST">
-        <input type="text" name="task" placeholder="Enter a new task">
-        <input type="submit" value="Add Task">
-    </form>
-    <ul>
-        {% for task in tasks %}
-        <li>{{ task }} <a href="/delete/{{ loop.index0 }}">x</a></li>
-        {% endfor %}
-    </ul>
-</body>
-</html>
-'''
-    return render_template_string(html, tasks=tasks)
+    try:
+        with YoutubeDL(ydl_opts) as ydl:
+            info_dict = ydl.extract_info(video_url, download=False)
+            formats = info_dict.get('formats', [])
 
-@app.route('/add', methods=['POST'])
-def add_task():
-    # Add a new task from the form data
-    task = request.form.get('task')
-    if task:
-        tasks.append(task)
-    return home()
+            # نختار أفضل جودة MP4 قابلة للتشغيل مباشر
+            for f in reversed(formats):
+                if f.get('ext') == 'mp4' and f.get('url'):
+                    return {"success": "1", "url": f.get('url')}
 
-@app.route('/delete/<int:index>', methods=['GET'])
-def delete_task(index):
-    # Delete a task based on its index
-    if index < len(tasks):
-        tasks.pop(index)
-    return home()
+            return {"success": "0", "error": "No suitable format found"}
+
+    except Exception as e:
+        return {"success": "0", "error": str(e)}
+
+# YouTube
+@app.route('/youtube/')
+def youtube():
+    url = request.args.get('url')
+    return jsonify(get_direct_url(url))
+
+# TikTok
+@app.route('/tiktok/')
+def tiktok():
+    url = request.args.get('url')
+    return jsonify(get_direct_url(url))
+
+# Facebook
+@app.route('/facebook/')
+def facebook():
+    url = request.args.get('url')
+    return jsonify(get_direct_url(url))
+
+# Instagram Reels
+@app.route('/instagram/reel/')
+def instagram_reel():
+    url = request.args.get('url')
+    return jsonify(get_direct_url(url))
+
+# Instagram Image (هنا لو الصورة فيديو بيمشي، أما صور سابتة فقد تحتاج تعديل)
+@app.route('/instagram/image/')
+def instagram_image():
+    url = request.args.get('url')
+    return jsonify(get_direct_url(url))
+
+# Snapchat
+@app.route('/snapchat/')
+def snapchat():
+    url = request.args.get('url')
+    return jsonify(get_direct_url(url))
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')
+    app.run(debug=True)
